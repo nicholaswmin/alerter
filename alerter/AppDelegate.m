@@ -411,19 +411,28 @@ isMavericks()
     };
     
     NSString *ActionsClicked = @"";
-    if ([notification.request.content.categoryIdentifier isEqualToString:@"actionsCategory"]) {
-        NSArray *actions = notification.request.content.userInfo[@"actions"];
-        NSUInteger actionIndex = [actions indexOfObject:notification.request.identifier];
-        ActionsClicked = actions[actionIndex];
-        NSDictionary *udict = @{@"activationType" : @"actionClicked", @"activationValue" : ActionsClicked, @"activationValueIndex" : [NSString stringWithFormat:@"%lu", (unsigned long)actionIndex]};
-        [self Quit:udict notification:notification];
-    } else if ([notification.request.content.categoryIdentifier isEqualToString:@"replyCategory"]) {
-        NSString *response = notification.request.content.userInfo[@"reply"];
-        NSDictionary *udict = @{@"activationType" : @"replied", @"activationValue" : response};
-        [self Quit:udict notification:notification];
-    } else if ([notification.request.content.categoryIdentifier isEqualToString:@"closeCategory"]) {
-        NSDictionary *udict = @{@"activationType" : @"closed", @"activationValue" : notification.request.content.userInfo[@"closeLabel"]};
-        [self Quit:udict notification:notification];
+    NSDictionary *categoryActions = @{
+        @"actionsCategory": ^{
+            NSArray *actions = notification.request.content.userInfo[@"actions"];
+            NSUInteger actionIndex = [actions indexOfObject:notification.request.identifier];
+            ActionsClicked = actions[actionIndex];
+            NSDictionary *udict = @{@"activationType" : @"actionClicked", @"activationValue" : ActionsClicked, @"activationValueIndex" : [NSString stringWithFormat:@"%lu", (unsigned long)actionIndex]};
+            [self Quit:udict notification:notification];
+        },
+        @"replyCategory": ^{
+            NSString *response = notification.request.content.userInfo[@"reply"];
+            NSDictionary *udict = @{@"activationType" : @"replied", @"activationValue" : response};
+            [self Quit:udict notification:notification];
+        },
+        @"closeCategory": ^{
+            NSDictionary *udict = @{@"activationType" : @"closed", @"activationValue" : notification.request.content.userInfo[@"closeLabel"]};
+            [self Quit:udict notification:notification];
+        }
+    };
+    
+    void (^actionBlock)(void) = categoryActions[notification.request.content.categoryIdentifier];
+    if (actionBlock) {
+        actionBlock();
     } else {
         [self Quit:@{@"activationType" : @"none"} notification:notification];
     }
